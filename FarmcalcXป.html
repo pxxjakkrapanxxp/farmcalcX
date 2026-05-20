@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <title>FarmCalc - แอปพลิเคชันประเมินและคำนวณผลผลิตอ้อยเพื่อการเกษตร</title>
+    <meta name="description" content="FarmCalc เครื่องมือช่วยคำนวณสำหรับเกษตรกร ประเมินผลผลิตอ้อยต่อไร่ คำนวณสูตรปุ๋ยมาตรฐาน และคำนวณขนาดพื้นที่ดิน">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Kanit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 1. พื้นหลังหลักของเว็บ เป็นภาพไร่อ้อยโทนสว่างสบายตาตามดีไซน์รูปที่สอง */
+        body {
+            background: linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)), 
+                        url('https://images.unsplash.com/photo-1559825481-12a05cc00344?q=80&w=1600&auto=format&fit=crop') no-repeat center center fixed;
+            background-size: cover;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* 2. การ์ดขาวโปร่งแสงสไตล์กระจกฝ้า (Glassmorphism) ซ้อนเลเยอร์ด้านหลังเครื่องมือถือ */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 40px 20px;
+            width: 100%;
+            max-width: 480px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .brand-logo { 
+            width: 75px; 
+            height: 75px; 
+            margin-bottom: 10px; 
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.05));
+        }
+
+        .screen { display: none; position: relative; z-index: 10; }
+        .screen.active { display: block; }
+
+        h2 { font-size: 32px; font-weight: 700; color: #1b5e20; letter-spacing: 0.5px; }
+        .subtitle { font-size: 14px; color: #4e5d4c; margin-top: 4px; font-weight: 400; }
+
+        /* 3. กรอบเครื่องโทรศัพท์มือถือสมาร์ทโฟนสีดำเงา */
+        .phone-container {
+            background: #ffffff;
+            border-radius: 45px;
+            padding: 25px 16px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.18), inset 0 0 0 10px #111111;
+            border: 4px solid #222222;
+            width: 100%;
+            max-width: 350px;
+            margin: 0 auto;
+        }
+
+        .phone-screen {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 15px 4px 5px 4px;
+        }
+
+        /* ตกแต่งสไตล์ปุ่มกดเมนูหลักให้ไล่เฉดสีนุ่มนวลและนูนมีมิติ */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; /* จัดไอคอนและข้อความชิดซ้ายแบบในรูปภาพ */
+            width: 100%;
+            height: 58px;
+            border: none;
+            border-radius: 22px;
+            padding: 0 24px;
+            font-size: 17px;
+            font-weight: 500;
+            color: white;
+            cursor: pointer;
+            margin-bottom: 2px;
+            transition: all 0.2s ease;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            touch-action: manipulation;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn:active { transform: translateY(-1px) scale(0.98); }
+        .btn i { margin-right: 16px; font-size: 20px; width: 24px; text-align: center; }
+
+        /* สีไล่ระดับตามแบบ UI รูปภาพที่สองของคุณแบบเป๊ะๆ */
+        .btn-fertilizer { background: linear-gradient(135deg, #2e7d32, #1b5e20); }
+        .btn-record { background: linear-gradient(135deg, #0288d1, #01579b); }
+        .btn-area { background: linear-gradient(135deg, #f57c00, #e65100); }
+        .btn-sugarcane { background: linear-gradient(135deg, #7b1fa2, #4a148c); } 
+        .btn-save-record { background: linear-gradient(135deg, #d81b60, #ad1457); border-radius: 14px; justify-content: center; height: 50px; }
+        .btn-back { background: #455a64; margin-top: 20px; border-radius: 14px; justify-content: center; height: 50px; }
+
+        /* ส่วนจัดแต่งของฟอร์มภายในหน้าย่อย */
+        .form-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; color: #455a64; }
+
+        input, select {
+            width: 100%;
+            height: 48px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 0 14px;
+            font-size: 15px;
+            background: #fff;
+            outline: none;
+            transition: border 0.2s;
+        }
+        input:focus, select:focus { border-color: #2e7d32; }
+
+        .rounds-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .round-box { background: #f9f9f9; padding: 10px; border-radius: 12px; border: 1px solid #eee; text-align: left; }
+        .round-box label { font-size: 11px; margin-bottom: 3px; }
+        .round-box input { height: 38px; }
+
+        .result-text-block {
+            display: none; 
+            color: #1b5e20;
+            background: #e8f5e9;
+            border-left: 5px solid #2e7d32;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.6;
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .save-zone { display: none; margin-top: 15px; }
+
+        /* รายการประวัติบันทึก */
+        .record-item {
+            background: #ffffff;
+            padding: 18px;
+            border-radius: 20px;
+            margin-bottom: 16px;
+            position: relative;
+            border: 1px solid #f0f0f0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.03);
+            text-align: left;
+        }
+
+        .record-title { color: #2e7d32; font-size: 16px; display: block; margin-bottom: 8px; }
+         
+        .record-stats-grid {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .stat-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 4px;
+            border-bottom: 1px dashed #eee;
+            padding-bottom: 4px;
+        }
+        .stat-line:last-child { border-bottom: none; }
+
+        .record-final-result {
+            font-size: 16px;
+            font-weight: 700;
+            color: #7b1fa2;
+            margin-top: 5px;
+            text-align: right;
+        }
+
+        .record-date { font-size: 11px; color: #9e9e9e; margin-top: 8px; }
+        .record-actions { position: absolute; top: 15px; right: 15px; display: flex; gap: 12px; }
+        .action-btn { background: none; border: none; cursor: pointer; font-size: 18px; }
+        .btn-edit-item { color: #0288d1; }
+        .btn-delete-item { color: #d32f2f; }
+    </style>
+</head>
+<body>
+
+<div class="glass-card">
+
+    <div class="logo-zone" id="app-branding">
+        <svg class="brand-logo" viewBox="0 0 100 100">
+            <path d="M50,85 L50,30" fill="none" stroke="#2e7d32" stroke-width="5" stroke-linecap="round"/>
+            <path d="M50,55 Q30,40 25,25 Q40,35 50,48" fill="none" stroke="#388e3c" stroke-width="3"/>
+            <path d="M50,55 Q70,40 75,25 Q60,35 50,48" fill="none" stroke="#388e3c" stroke-width="3"/>
+            <circle cx="50" cy="85" r="4" fill="#1b5e20"/>
+        </svg>
+        <h2>FarmCalc</h2>
+        <div class="subtitle">แอปพลิเคชันเพื่อการเกษตร · By จักรพรรณ</div>
+    </div>
+
+    <div class="phone-container">
+        <div class="phone-screen">
+
+            <div id="main-screen" class="screen active">
+                <button class="btn btn-fertilizer" onclick="switchScreen('fertilizer-screen')">
+                    <i class="fa-solid fa-flask"></i> คำนวณสูตรปุ๋ยละเอียด
+                </button>
+                <button class="btn btn-record" onclick="switchScreen('record-screen')">
+                    <i class="fa-solid fa-box-archive"></i> ประวัติประเมินอ้อย
+                </button>
+                <button class="btn btn-area" onclick="switchScreen('area-screen')">
+                    <i class="fa-solid fa-chart-area"></i> คำนวณพื้นที่ดิน
+                </button>
+                <button class="btn btn-sugarcane" onclick="switchScreen('sugarcane-screen')">
+                    <i class="fa-solid fa-seedling"></i> ประเมินอ้อย (ตัน/ไร่)
+                </button>
+            </div>
+
+            <div id="sugarcane-screen" class="screen">
+                <h3 style="text-align:center; color:#7b1fa2; margin-bottom:15px;" id="sugarcane-title">ประเมินผลผลิตอ้อย</h3>
+                <input type="hidden" id="editing-id" value="">
+                 
+                <div class="form-group">
+                    <label>ระยะห่างระหว่างร่องอ้อย</label>
+                    <select id="cane-row-spacing">
+                        <option value="1.60">1.60 เมตร</option>
+                        <option value="1.65">1.65 เมตร</option>
+                        <option value="1.70">1.70 เมตร</option>
+                        <option value="1.75">1.75 เมตร</option>
+                        <option value="1.80">1.80 เมตร</option>
+                    </select>
+                </div>
+
+                <table style="width:100%; border-collapse:collapse; margin-bottom:5px;">
+                    <tr><td><label>จำนวนลำต้นต่อ 5 เมตร (สุ่ม 4 จุด)</label></td></tr>
+                </table>
+                <div class="rounds-grid">
+                    <div class="round-box"><label>จุดที่ 1 (ลำ)</label><input type="number" id="round-1" placeholder="0"></div>
+                    <div class="round-box"><label>จุดที่ 2 (ลำ)</label><input type="number" id="round-2" placeholder="0"></div>
+                    <div class="round-box"><label>จุดที่ 3 (ลำ)</label><input type="number" id="round-3" placeholder="0"></div>
+                    <div class="round-box"><label>จุดที่ 4 (ลำ)</label><input type="number" id="round-4" placeholder="0"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>ค่าน้ำหนักเฉลี่ยต่อลำ</label>
+                    <select id="cane-weight-avg">
+                        <option value="1.0">1.0 กก./ลำ</option>
+                        <option value="1.2">1.2 กก./ลำ</option>
+                        <option value="1.5" selected>1.5 กก./ลำ</option>
+                        <option value="1.8">1.8 กก./ลำ</option>
+                        <option value="2.0">2.0 กก./ลำ</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-sugarcane" style="justify-content:center;" onclick="processCalculate()">
+                    <i class="fa-solid fa-calculator"></i> ประมวลผลคำนวณ
+                </button>
+
+                <div id="cane-result-text" class="result-text-block" style="border-color:#7b1fa2; background:#f3e5f5; color:#4a148c;"></div>
+
+                <div id="save-data-zone" class="save-zone">
+                    <div class="form-group">
+                        <label>ชื่อแปลงที่ต้องการบันทึก</label>
+                        <input type="text" id="cane-name" placeholder="ชื่อแปลง หรือ สถานที่">
+                    </div>
+                    <button class="btn btn-save-record" onclick="saveRecordToList()">
+                        <i class="fa-solid fa-floppy-disk"></i> ยืนยันบันทึกข้อมูล
+                    </button>
+                </div>
+                 
+                <button class="btn btn-back" onclick="cancelEditCane()">กลับหน้าหลัก</button>
+            </div>
+
+            <div id="record-screen" class="screen">
+                <h3 style="text-align:center; color:#01579b; margin-bottom:15px;">📜 ประวัติบันทึกข้อมูล</h3>
+                <div id="record-list" style="max-height: 50vh; overflow-y: auto; padding-right:2px;"></div>
+                <button class="btn btn-back" style="background:#0288d1;" onclick="switchScreen('main-screen')">กลับหน้าหลัก</button>
+            </div>
+
+            <div id="area-screen" class="screen">
+                <h3 style="text-align:center; color:#e65100; margin-bottom:15px;">📐 คำนวณพื้นที่ดิน</h3>
+                <div class="form-group"><label>ความกว้าง (เมตร)</label><input type="number" id="area-width" placeholder="0"></div>
+                <div class="form-group"><label>ความยาว (เมตร)</label><input type="number" id="area-length" placeholder="0"></div>
+                <button class="btn btn-area" style="justify-content:center;" onclick="calcArea()"><i class="fa-solid fa-calculator"></i> คำนวณพื้นที่</button>
+                <div id="area-result" class="result-text-block" style="background:#fff3e0; border-color:#f57c00; color:#e65100;"></div>
+                <button class="btn btn-back" style="background:#f57c00;" onclick="switchScreen('main-screen')">กลับหน้าหลัก</button>
+            </div>
+
+            <div id="fertilizer-screen" class="screen">
+                <h3 style="text-align:center; color:#1b5e20; margin-bottom:15px;">🧪 ระบบแนะนำและคำนวณสูตรปุ๋ย</h3>
+                 
+                <div class="form-group">
+                    <label>ขนาดพื้นที่ปลูก (ไร่)</label>
+                    <input type="number" id="fert-area" placeholder="กรอกจำนวนไร่ เช่น 10">
+                </div>
+                 
+                <div class="form-group">
+                    <label>เป้าหมายผลผลิตที่ต้องการ (ตัน/ไร่)</label>
+                    <select id="fert-target-level">
+                        <option value="12">อ้อยตอทั่วไป (เป้าหมาย 10-12 ตัน/ไร่)</option>
+                        <option value="15" selected>อ้อยปลูกใหม่ปานกลาง (เป้าหมาย 13-15 ตัน/ไร่)</option>
+                        <option value="20">อ้อยเทคโนโลยีสูง/น้ำหยด (เป้าหมาย 18-20+ ตัน/ไร่)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>เลือกสูตรปุ๋ยยอดนิยมในไทย</label>
+                    <select id="fert-thai-formula">
+                        <optgroup label="🌱 ช่วงรองพื้น / อ้อยปลูกใหม่">
+                            <option value="16-16-8">สูตร 16-16-8 (เร่งรากแตกกอดีมาก)</option>
+                            <option value="15-15-15">สูตร 15-15-15 (เสมอต้นเสมอปลาย)</option>
+                        </optgroup>
+                        <optgroup label="🌿 ช่วงเร่งลำต้น / แต่งหน้า">
+                            <option value="46-0-0">สูตร 46-0-0 (ยูเรีย เร่งโตไวใบเขียวเข้ม)</option>
+                            <option value="16-8-8">สูตร 16-8-8 (เร่งต้นบำรุงกอครบถ้วน)</option>
+                            <option value="20-10-12">สูตร 20-10-12 (ปุ๋ยสูตรเฉพาะอ้อยโต)</option>
+                        </optgroup>
+                        <optgroup label="🎋 ช่วงสะสมน้ำตาล / เพิ่มน้ำหนัก">
+                            <option value="15-5-20">สูตร 15-5-20 (เพิ่มความหวาน CCS น้ำหนักดี)</option>
+                            <option value="13-13-21">สูตร 13-13-21 (บำรุงหวานช่วงท้ายก่อนตัด)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <button class="btn btn-fertilizer" style="justify-content:center;" onclick="calcFertilizerAdvanced()">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> คำนวณและวิเคราะห์สูตรปุ๋ย
+                </button>
+
+                <div id="fert-result" class="result-text-block" style="background: #ffffff; border-left: 5px solid #2e7d32; box-shadow: 0 4px 12px rgba(0,0,0,0.05); color:#333;"></div>
+                <button class="btn btn-back" style="background:#2e7d32;" onclick="switchScreen('main-screen')">กลับหน้าหลัก</button>
+            </div>
+
+        </div>
+    </div> </div> <script>
+    // -------------------------------------------------------------
+    // ส่วนคงฟังก์ชันดั้งเดิมของระบบหลังบ้าน (JavaScript) ไว้ทั้งหมด
+    // -------------------------------------------------------------
+    let savedPlots = JSON.parse(localStorage.getItem('farmCalcPlots')) || [];
+     
+    let lastCalc = {
+        avgStalks: 0,
+        stalksPerRai: 0,
+        tonsPerRai: 0,
+        weightAvg: 0
+    };
+
+    function switchScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        document.getElementById('app-branding').style.display = (screenId === 'main-screen') ? 'flex' : 'none';
+        if(screenId === 'record-screen') displayRecords();
+    }
+
+    function processCalculate() {
+        const rowSpacing = parseFloat(document.getElementById('cane-row-spacing').value);
+        const weightAvg = parseFloat(document.getElementById('cane-weight-avg').value);
+        const r1 = parseFloat(document.getElementById('round-1').value) || 0;
+        const r2 = parseFloat(document.getElementById('round-2').value) || 0;
+        const r3 = parseFloat(document.getElementById('round-3').value) || 0;
+        const r4 = parseFloat(document.getElementById('round-4').value) || 0;
+
+        if (r1 > 0 && r2 > 0 && r3 > 0 && r4 > 0) {
+            const avgStalks = (r1 + r2 + r3 + r4) / 4;
+            const stalksPerRai = (avgStalks * 1600) / (rowSpacing * 5);
+            const tonsPerRai = (stalksPerRai * weightAvg) / 1000;
+
+            lastCalc = { avgStalks, stalksPerRai, tonsPerRai, weightAvg };
+
+            const resultBox = document.getElementById('cane-result-text');
+            resultBox.innerHTML = `
+                <strong>📊 ผลการคำนวณเฉลี่ย:</strong><br>
+                • ลำต้นเฉลี่ย: ${avgStalks.toFixed(1)} ลำ/5เมตร<br>
+                • ประเมินรวม: ${Math.round(stalksPerRai).toLocaleString()} ลำ/ไร่<br>
+                • น้ำหนักเฉลี่ย: ${weightAvg.toFixed(2)} กก./ลำ<br><br>
+                <span style="font-size:16px;">🔮 <strong>คาดการณ์ผลผลิต: ${tonsPerRai.toFixed(2)} ตัน/ไร่</strong></span>
+            `;
+            resultBox.style.display = "block";
+            document.getElementById('save-data-zone').style.display = "block";
+        } else {
+            alert("กรุณากรอกข้อมูลให้ครบทั้ง 4 จุด");
+        }
+    }
+
+    function saveRecordToList() {
+        const name = document.getElementById('cane-name').value.trim() || "แปลงไม่ได้ระบุชื่อ";
+        const editingId = document.getElementById('editing-id').value;
+        const now = new Date();
+        const dateText = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        const newPlot = {
+            id: editingId ? parseInt(editingId) : Date.now(),
+            plotName: name,
+            date: dateText + (editingId ? " (แก้ไข)" : ""),
+            tonsPerRai: lastCalc.tonsPerRai,
+            avgStalks: lastCalc.avgStalks,
+            stalksPerRai: lastCalc.stalksPerRai,
+            weightAvg: lastCalc.weightAvg,
+            rounds: [
+                parseFloat(document.getElementById('round-1').value),
+                parseFloat(document.getElementById('round-2').value),
+                parseFloat(document.getElementById('round-3').value),
+                parseFloat(document.getElementById('round-4').value)
+            ],
+            rowSpacing: parseFloat(document.getElementById('cane-row-spacing').value)
+        };
+
+        if (editingId) {
+            const idx = savedPlots.findIndex(p => p.id === parseInt(editingId));
+            if(idx !== -1) savedPlots[idx] = newPlot;
+        } else {
+            savedPlots.push(newPlot);
+        }
+
+        localStorage.setItem('farmCalcPlots', JSON.stringify(savedPlots));
+        alert("บันทึกข้อมูลเรียบร้อยแล้ว");
+        cancelEditCane();
+        switchScreen('record-screen');
+    }
+
+    function displayRecords() {
+        const container = document.getElementById('record-list');
+        if (savedPlots.length === 0) {
+            container.innerHTML = "<p style='text-align:center; color:#999; padding:20px;'>ยังไม่มีข้อมูลบันทึก</p>";
+            return;
+        }
+        container.innerHTML = ""; 
+        [...savedPlots].reverse().forEach(item => {
+            container.innerHTML += `
+                <div class="record-item">
+                    <strong class="record-title"><i class="fa-solid fa-location-dot"></i> แปลง: ${item.plotName}</strong>
+                    
+                    <div class="record-stats-grid">
+                        <div class="stat-line">
+                            <span>ลำต้นเฉลี่ย (5 ม.):</span>
+                            <span><strong>${(item.avgStalks || 0).toFixed(1)}</strong> ลำ</span>
+                        </div>
+                        <div class="stat-line">
+                            <span>ประเมินจำนวนลำ:</span>
+                            <span><strong>${Math.round(item.stalksPerRai || 0).toLocaleString()}</strong> ลำ/ไร่</span>
+                        </div>
+                        <div class="stat-line">
+                            <span>น้ำหนักอ้อย:</span>
+                            <span><strong>${(item.weightAvg || 0).toFixed(2)}</strong> กก./ลำ</span>
+                        </div>
+                    </div>
+
+                    <div class="record-final-result">
+                        คาดการณ์: ${(item.tonsPerRai || 0).toFixed(2)} ตัน/ไร่
+                    </div>
+
+                    <div class="record-date">วันที่: ${item.date}</div>
+
+                    <div class="record-actions">
+                        <button class="action-btn btn-edit-item" onclick="editRecord(${item.id})"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button class="action-btn btn-delete-item" onclick="deleteRecord(${item.id})"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function editRecord(id) {
+        const p = savedPlots.find(x => x.id === id);
+        if(p) {
+            document.getElementById('editing-id').value = p.id;
+            document.getElementById('cane-name').value = p.plotName;
+            document.getElementById('cane-row-spacing').value = p.rowSpacing;
+            document.getElementById('cane-weight-avg').value = p.weightAvg;
+            document.getElementById('round-1').value = p.rounds[0];
+            document.getElementById('round-2').value = p.rounds[1];
+            document.getElementById('round-3').value = p.rounds[2];
+            document.getElementById('round-4').value = p.rounds[3];
+            document.getElementById('sugarcane-title').innerText = "✏️ แก้ไขข้อมูลแปลง";
+            processCalculate();
+            switchScreen('sugarcane-screen');
+        }
+    }
+
+    function deleteRecord(id) {
+        if(confirm("ยืนยันการลบข้อมูลนี้?")) {
+            savedPlots = savedPlots.filter(x => x.id !== id);
+            localStorage.setItem('farmCalcPlots', JSON.stringify(savedPlots));
+            displayRecords();
+        }
+    }
+
+    function cancelEditCane() {
+        document.getElementById('editing-id').value = "";
+        document.querySelectorAll('#sugarcane-screen input').forEach(i => i.value = "");
+        document.getElementById('cane-result-text').style.display = "none";
+        document.getElementById('save-data-zone').style.display = "none";
+        document.getElementById('sugarcane-title').innerText = "ประเมินผลผลิตอ้อย";
+        switchScreen('main-screen');
+    }
+
+    function calcArea() {
+        const w = parseFloat(document.getElementById('area-width').value) || 0;
+        const l = parseFloat(document.getElementById('area-length').value) || 0;
+        if(w > 0 && l > 0) {
+            document.getElementById('area-result').innerHTML = `พื้นที่ทั้งหมด: ${(w*l).toLocaleString()} ตร.ม.<br>คิดเป็น: <strong>${(w*l/1600).toFixed(2)} ไร่</strong>`;
+            document.getElementById('area-result').style.display = "block";
+        }
+    }
+    
+    function calcFertilizerAdvanced() {
+        const area = parseFloat(document.getElementById('fert-area').value) || 0;
+        const target = parseFloat(document.getElementById('fert-target-level').value);
+        const formula = document.getElementById('fert-thai-formula').value;
+
+        if (area <= 0) {
+            alert("กรุณากรอกขนาดพื้นที่ปลูกก่อนครับ");
+            return;
+        }
+
+        let baseKgPerRai = 30; 
+        let adviceText = "";
+
+        if (target === 15) {
+            baseKgPerRai = 50; 
+            adviceText = "💡 เพื่อให้ได้ผลผลิต 13-15 ตัน/ไร่ ควรเน้นการเตรียมดินให้ลึก และใส่ปุ๋ยสูตรนี้ในช่วงที่ความชื้นในดินเหมาะสมเพื่อประสิทธิภาพสูงสุด";
+        } else if (target === 20) {
+            baseKgPerRai = 80; 
+            adviceText = "🚀 ระดับเทคโนโลยีสูง 18-20+ ตัน/ไร่: แนะนำให้ทำควบคู่กับระบบน้ำหยด และควรแบ่งใส่ปุ๋ยนี้เป็น 2 รอบ เพื่อป้องกันการสูญเสียหน้าดินและเพิ่มการดูดซึมสูงสุดครับ!";
+        } else {
+            adviceText = "🌱 ระดับมาตรฐานประหยัดต้นทุน: เหมาะสำหรับประคองตออ้อยเก่าให้สมบูรณ์และลดค่าใช้จ่าย";
+        }
+
+        const totalKgNeeded = baseKgPerRai * area;
+        const totalBags = totalKgNeeded / 50;
+
+        let formulaDetail = "";
+        if(formula === "16-16-8" || formula === "15-15-15") {
+            formulaDetail = "เหมาะมากสำหรับอ้อยปลูกใหม่ช่วง 1 เดือนแรก เพื่อเร่งรากและหน่อให้แตกกอขยายตัวดี";
+        } else if(formula === "46-0-0" || formula === "16-8-8" || formula === "20-10-12") {
+            formulaDetail = "เหมาะสำหรับแต่งหน้าในช่วงอายุ 2-3 เดือน เพื่อเร่งลำต้นให้โตไว ขยายกอและยืดปล้องยาว";
+        } else {
+            formulaDetail = "เหมาะมากสำหรับช่วงอายุ 4-5 เดือนขึ้นไป เพื่อสะสมน้ำหวาน (CCS) เพิ่มน้ำหนักก่อนตัดส่งโรงงาน";
+        }
+
+        const resultBox = document.getElementById('fert-result');
+        resultBox.innerHTML = `
+            <div style="color:#1b5e20; font-weight:700; font-size:16px; margin-bottom:10px;"><i class="fa-solid fa-chart-line"></i> วิเคราะห์แผนการใส่ปุ๋ยอ้อย</div>
+            <p style="font-size:13px; margin-bottom:8px;">• เลือกปุ๋ย: <strong>สูตร ${formula}</strong> (${formulaDetail})</p>
+            <p style="font-size:13px; margin-bottom:8px;">• อัตราที่เหมาะสม: <strong>${baseKgPerRai} กก.ต่อไร่</strong></p>
+            <hr style="border:none; border-top:1px solid #eee; margin:10px 0;">
+            <div style="font-size:15px; margin-bottom:10px;">
+                📦 จำนวนที่ต้องใช้ในพื้นที่ <strong>${area.toLocaleString()} ไร่</strong>:<br>
+                <span style="font-size:20px; color:#2e7d32; font-weight:700;">🔥 ใช้ทั้งหมด: ${totalBags.toFixed(1)} กระสอบ</span><br>
+                <span style="font-size:12px; color:#666;">(คิดเป็นน้ำหนักรวม ${totalKgNeeded.toLocaleString()} กก.)</span>
+            </div>
+            <div style="background:#f1f8e9; padding:10px; border-radius:8px; font-size:12px; color:#33691e; line-height:1.4;">
+                ${adviceText}
+            </div>
+        `;
+        resultBox.style.display = "block";
+    }
+</script>
+
+</body>
+</html>

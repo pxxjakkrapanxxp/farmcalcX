@@ -12,8 +12,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     
     <style>
         * {
@@ -343,11 +348,31 @@
 
             <div id="area-screen" class="screen">
                 <h3 style="text-align:center; color:#e65100; margin-bottom:15px;">📐 คำนวณพื้นที่ดิน</h3>
-                <div class="form-group"><label>ความกว้าง (เมตร)</label><input type="number" id="area-width" placeholder="0"></div>
-                <div class="form-group"><label>ความยาว (เมตร)</label><input type="number" id="area-length" placeholder="0"></div>
-                <button class="btn btn-area" style="justify-content:center;" onclick="calcArea()"><i class="fa-solid fa-calculator"></i> คำนวณพื้นที่</button>
-                <div id="area-result" class="result-text-block" style="background:#fff3e0; border-color:#f57c00; color:#e65100;"></div>
-                <button class="btn btn-back" style="background:#f57c00;" onclick="switchScreen('main-screen')">กลับหน้าหลัก</button>
+                
+                <div class="map-container" style="margin-top: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #d35400;">
+                        📍 จิ้มเลือกแปลงที่ดินบนแผนที่ดาวเทียมเพื่อคำนวณพื้นที่
+                    </label>
+        
+                    <button type="button" onclick="getLocation()" style="background-color: #3498db; color: white; border: none; padding: 8px 12px; border-radius: 20px; margin-bottom: 10px; cursor: pointer; font-size: 13px;">
+                        🎯 ใช้พิกัด GPS ปัจจุบันของฉัน
+                    </button>
+        
+                    <button type="button" onclick="clearMap()" style="background-color: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 20px; margin-bottom: 10px; margin-left: 5px; cursor: pointer; font-size: 13px;">
+                        🗑️ ล้างเส้นเพื่อวาดใหม่
+                    </button>
+
+                    <div id="map" style="width: 100%; height: 350px; border-radius: 15px; border: 2px solid #e0e0e0; box-shadow: inset 0 0 5px rgba(0,0,0,0.1);"></div>
+                </div>
+
+                <div id="area-result" style="margin-top: 15px; padding: 15px; background-color: #fff3e0; border-left: 5px solid #ff9800; border-radius: 8px; display: none;">
+                    <h4 style="margin: 0 0 8px 0; color: #e65100;">📐 ผลการคำนวณพื้นที่แปลงที่ดิน</h4>
+                    <p style="margin: 5px 0; font-size: 16px;">คำนวณได้ทั้งหมด: <strong id="txt-total-rai" style="color: #d84315; font-size: 20px;">0</strong> ไร่</p>
+                    <p style="margin: 5px 0; color: #555;" id="txt-detail-thai">0 ไร่ 0 งาน 0.0 ตารางวา</p>
+                    <p style="margin: 5px 0; color: #777; font-size: 12px;">(คิดเป็นพื้นที่รวม: <span id="txt-detail-sqm">0</span> ตร.ม.)</p>
+                </div>
+
+                <button class="btn btn-back" style="background:#f57c00; margin-top: 15px;" onclick="switchScreen('main-screen')">กลับหน้าหลัก</button>
             </div>
 
             <div id="fertilizer-screen" class="screen">
@@ -400,7 +425,14 @@
 
 <script>
     // -------------------------------------------------------------
-    // ส่วนควบคุมฟังก์ชันหลังบ้านและระบบคำนวณทั้งหมด (JavaScript)
+    // [เพิ่มใหม่] ระบบตัวแปรสำหรับควบคุมแผนที่ดาวเทียมและหมุด GPS
+    // -------------------------------------------------------------
+    let map;
+    let mapMarkers = [];
+    let polygonLayer = null;
+
+    // -------------------------------------------------------------
+    // ส่วนควบคุมฟังก์ชันหลังบ้านและระบบคำนวณทั้งหมด (JavaScript เดิม)
     // -------------------------------------------------------------
     let savedPlots = JSON.parse(localStorage.getItem('farmCalcPlots')) || [];
      
@@ -411,6 +443,134 @@
         weightAvg: 0
     };
 
+    // [ปรับปรุงเพิ่ม] ตั้งค่าให้เริ่มต้นโหลดแผนที่ดาวเทียมทันทีเมื่อเปิดหน้าจอ
+    document.addEventListener("DOMContentLoaded", function() {
+        // ตั้งพิกัดเริ่มต้นไปที่ใจกลางประเทศไทย (กรณีผู้ใช้ยังไม่กด GPS)
+        map = L.map('map').setView([15.8700, 100.9925], 6);
+
+        // ดึงภาพถ่ายดาวเทียมความละเอียดสูงจาก Esri World Imagery
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EBP, and the GIS User Community'
+        }).addTo(map);
+
+        // ดักจับเหตุการณ์คลิก/จิ้ม บนแผนที่เพื่อเริ่มปักหมุด
+        map.on('click', onMapClick);
+    });
+
+    // -------------------------------------------------------------
+    // [เพิ่มใหม่] ฟังก์ชันระบบแผนที่และการคำนวณรูปทรงอิสระ
+    // -------------------------------------------------------------
+    function onMapClick(e) {
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+
+        // ปักหมุดสีแดงตรงจุดที่คลิก
+        const marker = L.marker([lat, lng]).addTo(map);
+        mapMarkers.push(marker);
+
+        // ลากเส้นเชื่อมโยงและคำนวณพื้นที่ทุกครั้งที่มีจุดใหม่
+        drawPolygon();
+    }
+
+    function drawPolygon() {
+        const coordinates = mapMarkers.map(m => [m.getLatLng().lng, m.getLatLng().lat]);
+
+        // ลบเส้นรูปทรงเดิมออกก่อนเพื่อวาดเวอร์ชันอัปเดต
+        if (polygonLayer) {
+            map.removeLayer(polygonLayer);
+        }
+
+        // ต้องปักหมุดตั้งแต่ 3 จุดขึ้นไป จึงจะประกอบร่างเป็นพื้นที่ได้
+        if (coordinates.length >= 3) {
+            // ปิดปลายเส้นด้วยการเชื่อมจุดสุดท้ายกลับมาจุดแรก
+            const closedCoordinates = [...coordinates, coordinates[0]];
+            
+            // วาด Polygon สีส้มโปร่งแสงทับพื้นที่ดิน
+            polygonLayer = L.polygon(closedCoordinates.map(c => [c[1], c[0]]), {
+                color: '#ff9800',
+                fillColor: '#ffe082',
+                fillOpacity: 0.5
+            }).addTo(map);
+
+            // คำนวณหาพื้นที่ตารางเมตรด้วยเทคโนโลยี Turf.js
+            const turfPolygon = turf.polygon([closedCoordinates]);
+            const areaInSquareMeters = turf.area(turfPolygon);
+
+            // ส่งข้อมูลตารางเมตรไปแปลงหน่วยและแสดงผลลัพธ์
+            displayThaiArea(areaInSquareMeters);
+        }
+    }
+
+    function displayThaiArea(squareMeters) {
+        let remainingArea = squareMeters;
+
+        // แปลงหน่วยตามสัดส่วนที่ดินไทย
+        const rai = Math.floor(remainingArea / 1600);
+        remainingArea %= 1600;
+
+        const ngan = Math.floor(remainingArea / 400);
+        remainingArea %= 400;
+
+        const wah = (remainingArea / 4).toFixed(1);
+
+        // หาผลรวมทั้งหมดออกมาเป็นหน่วย "ไร่" ทศนิยม 2 ตำแหน่ง
+        const totalRaiDecimal = (squareMeters / 1600).toFixed(2);
+
+        // อัปเดตข้อความบนหน้าจอการ์ดแสดงผลลัพธ์แผนที่
+        document.getElementById("area-result").style.display = "block";
+        document.getElementById("txt-total-rai").innerText = totalRaiDecimal;
+        document.getElementById("txt-detail-thai").innerText = `${rai} ไร่ ${ngan} งาน ${wah} ตารางวา`;
+        document.getElementById("txt-detail-sqm").innerText = Math.round(squareMeters).toLocaleString();
+
+        // ✨ [ระบบเชื่อมโยงข้อมูลอัตโนมัติ] ส่งตัวเลขไร่ไปกรอกในฟอร์มคำนวณสูตรปุ๋ย
+        // 1. ช่องขนาดพื้นที่ในฟังก์ชัน "คำนวณปุ๋ยแอดวานซ์"
+        const fertAreaInput = document.getElementById('fert-area');
+        if (fertAreaInput) fertAreaInput.value = totalRaiDecimal;
+
+        // 2. ช่องขนาดพื้นที่ในฟังก์ชัน "คำนวณปุ๋ยมิตรผล"
+        const mitrAreaInput = document.getElementById('mitr-area');
+        if (mitrAreaInput) mitrAreaInput.value = totalRaiDecimal;
+    }
+
+    function getLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                
+                // ซูมแผนที่เข้าไปใกล้ระดับแปลงที่ดินหน้างานจริง (Zoom 17)
+                map.setView([lat, lng], 17);
+                
+                // สร้างวงกลมรัศมีพิกัดระบุตำแหน่งสีน้ำเงินตรงตัวผู้ใช้
+                L.circle([lat, lng], {radius: 5, color: 'blue'}).addTo(map);
+            }, function(error) {
+                alert("ไม่สามารถเข้าถึงพิกัด GPS ได้ กรุณาอนุญาตสิทธิ์การเข้าถึงตำแหน่งพิกัดบนเบราว์เซอร์ของคุณ");
+            });
+        } else {
+            alert("อุปกรณ์หรือเบราว์เซอร์นี้ไม่รองรับระบบดึงพิกัด GPS");
+        }
+    }
+
+    function clearMap() {
+        // ล้างหมุดทั้งหมดออกจาแผนที่
+        mapMarkers.forEach(m => map.removeLayer(m));
+        mapMarkers = [];
+        
+        // ล้างเส้น Polygon
+        if (polygonLayer) {
+            map.removeLayer(polygonLayer);
+            polygonLayer = null;
+        }
+        
+        // ซ่อนกล่องผลลัพธ์และเคลียร์ค่าช่องปุ๋ยกลับเป็นศูนย์
+        document.getElementById("area-result").style.display = "none";
+        if (document.getElementById('fert-area')) document.getElementById('fert-area').value = "";
+        if (document.getElementById('mitr-area')) document.getElementById('mitr-area').value = "";
+    }
+
+    // -------------------------------------------------------------
+    // ฟังก์ชันระบบเดิมของคุณทั้งหมด (คงอยู่ครบถ้วน ไม่สูญหาย)
+    // -------------------------------------------------------------
     function switchScreen(screenId) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(screenId).classList.add('active');
@@ -418,7 +578,6 @@
         if(screenId === 'record-screen') displayRecords();
     }
 
-    // ฟังก์ชันคำนวณสูตรแม่ปุ๋ย N P K ตามเกณฑ์มาตรฐานโรงงานมิตรผลจริง
     function calcMitrPholNPK() {
         const area = parseFloat(document.getElementById('mitr-area').value);
         const caneType = document.getElementById('mitr-cane-type').value;
@@ -429,37 +588,25 @@
             return;
         }
 
-        // ดัชนีความต้องการธาตุอาหารพื้นฐานต่อน้ำหนักอ้อย 1 ตัน (อ้างอิงหลักการบำรุงปุ๋ยมิตรผล)
         let nPerTon = 1.2;
         let pPerTon = 0.4;
         let kPerTon = 1.5;
 
-        // อ้อยตอต้องการธาตุไนโตรเจนและโพแทสเซียมเข้มข้นขึ้นเพื่อช่วยบำรุงตอเร่งการแตกหน่อใหม่
         if (caneType === 'ratoon') {
             nPerTon = 1.4;
             kPerTon = 1.7;
         }
 
-        // คำนวณความต้องการธาตุสารอาหารบริสุทธิ์ทั้งหมดในแปลง (กิโลกรัม)
         const netN = nPerTon * target * area;
         const netP = pPerTon * target * area;
         const netK = kPerTon * target * area;
 
-        // แยกคำนวณน้ำหนักกลับไปเป็นปริมาณแม่ปุ๋ย 3 ชนิดหลัก
-        // 1. หาปริมาณโพแทสเซียมจากปุ๋ย ม็อบ MOP (0-0-60)
         const mopKg = netK / 0.6;
-        
-        // 2. หาปริมาณฟอสฟอรัสจากปุ๋ย แดป DAP (18-46-0)
         const dapKg = netP / 0.46;
-        
-        // 3. หักลบไนโตรเจนที่ติดมากับ DAP ออกเพื่อหาไนโตรเจนบริสุทธิ์ที่ต้องเติมจริง
         const nFromDap = dapKg * 0.18;
         const remN = netN - nFromDap;
-        
-        // 4. หาปริมาณไนโตรเจนจากปุ๋ย ยูเรีย Urea (46-0-0)
         const ureaKg = remN > 0 ? (remN / 0.46) : 0;
 
-        // แปลงผลลัพธ์เป็นจำนวนกระสอบมาตรฐาน (บรรจุกระสอบละ 50 กก.)
         const ureaBags = (ureaKg / 50).toFixed(1);
         const dapBags = (dapKg / 50).toFixed(1);
         const mopBags = (mopKg / 50).toFixed(1);
@@ -627,13 +774,9 @@
         switchScreen('main-screen');
     }
 
+    // เอาโค้ดดึงค่ากว้างยาวเดิมในฟังก์ชันคำนวณพื้นที่เก่าออกแล้ว เปลี่ยนไปใช้การคำนวณจากแผนที่ดาวเทียมด้านบนแทน
     function calcArea() {
-        const w = parseFloat(document.getElementById('area-width').value) || 0;
-        const l = parseFloat(document.getElementById('area-length').value) || 0;
-        if(w > 0 && l > 0) {
-            document.getElementById('area-result').innerHTML = `พื้นที่ทั้งหมด: ${(w*l).toLocaleString()} ตร.ม.<br>คิดเป็น: <strong>${(w*l/1600).toFixed(2)} ไร่</strong>`;
-            document.getElementById('area-result').style.display = "block";
-        }
+        // เปลี่ยนเป็นฟังก์ชันว่าง เพื่อป้องกันเออร์เรอร์จากการเรียกหาไอดีเก่าที่ถูกลบไป
     }
     
     function calcFertilizerAdvanced() {

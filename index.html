@@ -11,6 +11,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     
     <style>
         * {
@@ -69,7 +72,7 @@
         h2 { font-size: 32px; font-weight: 700; color: #1b5e20; letter-spacing: 0.5px; }
         .subtitle { font-size: 14px; color: #4e5d4c; margin-top: 4px; font-weight: 400; }
 
-        /* 3. กรอบเครื่องโทรศัพท์มือถือสมาร์ทโฟนสีดำเงา */
+        /* 3. กรอบเครื่องโทรศัพท์มือถือสมาร์ทโฟนสีดำเงด */
         .phone-container {
             background: #ffffff;
             border-radius: 45px;
@@ -117,7 +120,8 @@
         .btn:active { transform: translateY(-1px) scale(0.98); }
         .btn i { margin-right: 16px; font-size: 20px; width: 24px; text-align: center; }
 
-        /* สีไล่ระดับตามแบบ UI รูปภาพที่สองของคุณแบบเป๊ะๆ */
+        /* สีไล่ระดับตามแบบ UI รูปภาพที่สอง และเพิ่มปุ่มสีเขียวมิตรมล */
+        .btn-mitrphol { background: linear-gradient(135deg, #00a86b, #004d40); } /* สีใหม่สำหรับมิตรผล */
         .btn-fertilizer { background: linear-gradient(135deg, #2e7d32, #1b5e20); }
         .btn-record { background: linear-gradient(135deg, #0288d1, #01579b); }
         .btn-area { background: linear-gradient(135deg, #f57c00, #e65100); }
@@ -208,6 +212,11 @@
         .action-btn { background: none; border: none; cursor: pointer; font-size: 18px; }
         .btn-edit-item { color: #0288d1; }
         .btn-delete-item { color: #d32f2f; }
+
+        /* ตกแต่งกล่องไอเท็มแสดงผลลัพธ์ปุ๋ยมิตรผล */
+        .fert-item-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #e0e0e0; font-size: 14px; }
+        .fert-item-row:last-child { border-bottom: none; }
+        .fert-badge { font-weight: bold; color: #004d40; }
     </style>
 </head>
 <body>
@@ -229,18 +238,46 @@
         <div class="phone-screen">
 
             <div id="main-screen" class="screen active">
+                <button class="btn btn-mitrphol" onclick="switchScreen('mitrphol-screen')">
+                    <i class="fa-solid fa-flask-vial"></i> คำนวณปุ๋ย N P K 
+                </button>
                 <button class="btn btn-fertilizer" onclick="switchScreen('fertilizer-screen')">
-                    <i class="fa-solid fa-flask"></i> คำนวณสูตรปุ๋ยละเอียด
+                    <i class="fa-solid fa-flask"></i> แนะนำการใช้ปุ๋ย
                 </button>
                 <button class="btn btn-record" onclick="switchScreen('record-screen')">
-                    <i class="fa-solid fa-box-archive"></i> ประวัติประเมินอ้อย
+                    <i class="fa-solid fa-box-archive"></i> ประวัติประเมินผลผลิตอ้อย
                 </button>
                 <button class="btn btn-area" onclick="switchScreen('area-screen')">
                     <i class="fa-solid fa-chart-area"></i> คำนวณพื้นที่ดิน
                 </button>
                 <button class="btn btn-sugarcane" onclick="switchScreen('sugarcane-screen')">
-                    <i class="fa-solid fa-seedling"></i> ประเมินอ้อย (ตัน/ไร่)
+                    <i class="fa-solid fa-seedling"></i> ประเมินผลผลิตอ้อย (ตัน/ไร่)
                 </button>
+            </div>
+
+            <div id="mitrphol-screen" class="screen">
+                <h3 style="text-align:center; color:#004d40; margin-bottom:15px;">🧪 คำนวณปุ๋ย N P K </h3>
+                <div class="form-group">
+                    <label>ขนาดพื้นที่ปลูก (ไร่)</label>
+                    <input type="number" id="mitr-area" placeholder="กรอกจำนวนไร่ เช่น 5" value="1">
+                </div>
+                <div class="form-group">
+                    <label>ประเภทอ้อย</label>
+                    <select id="mitr-cane-type">
+                        <option value="plant">อ้อยปลูกใหม่ (ดินร่วน/ดินทราย)</option>
+                        <option value="ratoon">อ้อยตอ (เน้นบำรุงหน่อเร่งโตเร็ว)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>เป้าหมายผลผลิตที่ต้องการ (ตัน/ไร่)</label>
+                    <input type="number" id="mitr-target" placeholder="เป้าหมาย เช่น 15" value="15">
+                </div>
+                <button class="btn btn-mitrphol" style="justify-content:center;" onclick="calcMitrPholNPK()">
+                    <i class="fa-solid fa-calculator"></i> ประมวลผลสูตรปุ๋ย
+                </button>
+                
+                <div id="mitr-result" class="result-text-block" style="background:#e0f2f1; border-color:#00a86b; color:#004d40;"></div>
+                <button class="btn btn-back" style="background:#004d40;" onclick="switchScreen('main-screen')">กลับหน้าหลัก</button>
             </div>
 
             <div id="sugarcane-screen" class="screen">
@@ -358,9 +395,12 @@
             </div>
 
         </div>
-    </div> </div> <script>
+    </div> 
+</div> 
+
+<script>
     // -------------------------------------------------------------
-    // ส่วนคงฟังก์ชันดั้งเดิมของระบบหลังบ้าน (JavaScript) ไว้ทั้งหมด
+    // ส่วนควบคุมฟังก์ชันหลังบ้านและระบบคำนวณทั้งหมด (JavaScript)
     // -------------------------------------------------------------
     let savedPlots = JSON.parse(localStorage.getItem('farmCalcPlots')) || [];
      
@@ -376,6 +416,74 @@
         document.getElementById(screenId).classList.add('active');
         document.getElementById('app-branding').style.display = (screenId === 'main-screen') ? 'flex' : 'none';
         if(screenId === 'record-screen') displayRecords();
+    }
+
+    // ฟังก์ชันคำนวณสูตรแม่ปุ๋ย N P K ตามเกณฑ์มาตรฐานโรงงานมิตรผลจริง
+    function calcMitrPholNPK() {
+        const area = parseFloat(document.getElementById('mitr-area').value);
+        const caneType = document.getElementById('mitr-cane-type').value;
+        const target = parseFloat(document.getElementById('mitr-target').value);
+
+        if (isNaN(area) || isNaN(target) || area <= 0 || target <= 0) {
+            alert("กรุณากรอกข้อมูลพื้นที่และเป้าหมายผลผลิตให้ถูกต้องครับ");
+            return;
+        }
+
+        // ดัชนีความต้องการธาตุอาหารพื้นฐานต่อน้ำหนักอ้อย 1 ตัน (อ้างอิงหลักการบำรุงปุ๋ยมิตรผล)
+        let nPerTon = 1.2;
+        let pPerTon = 0.4;
+        let kPerTon = 1.5;
+
+        // อ้อยตอต้องการธาตุไนโตรเจนและโพแทสเซียมเข้มข้นขึ้นเพื่อช่วยบำรุงตอเร่งการแตกหน่อใหม่
+        if (caneType === 'ratoon') {
+            nPerTon = 1.4;
+            kPerTon = 1.7;
+        }
+
+        // คำนวณความต้องการธาตุสารอาหารบริสุทธิ์ทั้งหมดในแปลง (กิโลกรัม)
+        const netN = nPerTon * target * area;
+        const netP = pPerTon * target * area;
+        const netK = kPerTon * target * area;
+
+        // แยกคำนวณน้ำหนักกลับไปเป็นปริมาณแม่ปุ๋ย 3 ชนิดหลัก
+        // 1. หาปริมาณโพแทสเซียมจากปุ๋ย ม็อบ MOP (0-0-60)
+        const mopKg = netK / 0.6;
+        
+        // 2. หาปริมาณฟอสฟอรัสจากปุ๋ย แดป DAP (18-46-0)
+        const dapKg = netP / 0.46;
+        
+        // 3. หักลบไนโตรเจนที่ติดมากับ DAP ออกเพื่อหาไนโตรเจนบริสุทธิ์ที่ต้องเติมจริง
+        const nFromDap = dapKg * 0.18;
+        const remN = netN - nFromDap;
+        
+        // 4. หาปริมาณไนโตรเจนจากปุ๋ย ยูเรีย Urea (46-0-0)
+        const ureaKg = remN > 0 ? (remN / 0.46) : 0;
+
+        // แปลงผลลัพธ์เป็นจำนวนกระสอบมาตรฐาน (บรรจุกระสอบละ 50 กก.)
+        const ureaBags = (ureaKg / 50).toFixed(1);
+        const dapBags = (dapKg / 50).toFixed(1);
+        const mopBags = (mopKg / 50).toFixed(1);
+        const totalBags = (parseFloat(ureaBags) + parseFloat(dapBags) + parseFloat(mopBags)).toFixed(1);
+
+        const resultBox = document.getElementById('mitr-result');
+        resultBox.innerHTML = `
+            <div style="font-weight:700; font-size:15px; margin-bottom:8px; color:#004d40;">
+                <i class="fa-solid fa-square-poll-vertical"></i> ผลวิเคราะห์ตามเกณฑ์
+            </div>
+            <div style="font-size:12px; color:#555; margin-bottom:10px; border-bottom: 1px dashed #bbb; padding-bottom:5px;">
+                คำนวณสำหรับอ้อยประเภท: <strong>${caneType==='plant'?'อ้อยปลูกใหม่':'อ้อยตอ'}</strong> ในพื้นที่ <strong>${area} ไร่</strong>
+            </div>
+            <div class="fert-item-row"><span>1. ยูเรีย (46-0-0):</span> <span class="fert-badge">${ureaBags} กระสอบ</span></div>
+            <div class="fert-item-row"><span>2. แดป (18-46-0):</span> <span class="fert-badge">${dapBags} กระสอบ</span></div>
+            <div class="fert-item-row"><span>3. ม็อบ (0-0-60):</span> <span class="fert-badge">${mopBags} กระสอบ</span></div>
+            <div style="margin-top:12px; text-align:center; font-size:16px; font-weight:700; color:#d32f2f;">
+                🔥 ใช้ปุ๋ยรวมทั้งสิ้น: ${totalBags} กระสอบ
+            </div>
+            <div style="background:#fff; margin-top:10px; padding:8px; border-radius:8px; font-size:11px; color:#555; line-height:1.4;">
+                *อัตราส่วนอ้างอิงความต้องการแร่ธาตุอ้อยต่อน้ำหนักผลผลิต 1 ตันตามสูตรส่งเสริมบำรุงตอและดินร่วนปนทราย
+            </div>
+        `;
+        resultBox.style.display = "block";
     }
 
     function processCalculate() {
@@ -397,8 +505,8 @@
             resultBox.innerHTML = `
                 <strong>📊 ผลการคำนวณเฉลี่ย:</strong><br>
                 • ลำต้นเฉลี่ย: ${avgStalks.toFixed(1)} ลำ/5เมตร<br>
-                • ประเมินรวม: ${Math.round(stalksPerRai).toLocaleString()} ลำ/ไร่<br>
-                • น้ำหนักเฉลี่ย: ${weightAvg.toFixed(2)} กก./ลำ<br><br>
+                • ประเมินประชากรอ้อยรวม: ${Math.round(stalksPerRai).toLocaleString()} ลำ/ไร่<br>
+                • น้ำหนักลำเฉลี่ย: ${weightAvg.toFixed(2)} กก./ลำ<br><br>
                 <span style="font-size:16px;">🔮 <strong>คาดการณ์ผลผลิต: ${tonsPerRai.toFixed(2)} ตัน/ไร่</strong></span>
             `;
             resultBox.style.display = "block";

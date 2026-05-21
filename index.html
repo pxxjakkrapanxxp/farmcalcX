@@ -16,9 +16,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
-
-
-    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     
     <style>
         * {
@@ -126,7 +123,8 @@
         .btn i { margin-right: 16px; font-size: 20px; width: 24px; text-align: center; }
 
         /* สีไล่ระดับตามแบบ UI รูปภาพที่สอง และเพิ่มปุ่มสีเขียวมิตรมล */
-        .btn-mitrphol { background: linear-gradient(135deg, #00a86b, #004d40); } /* สีใหม่สำหรับมิตรผล */
+        .btn-mitrphol { background: linear-gradient(135deg, #00a86b, #004d40); } /* สีสำหรับมิตรผล */
+        .btn-custom-npk { background: linear-gradient(135deg, #00796b, #004d40); } /* สีสำหรับเมนูคำนวณแม่ปุ๋ย NPK ใหม่ */
         .btn-fertilizer { background: linear-gradient(135deg, #2e7d32, #1b5e20); }
         .btn-record { background: linear-gradient(135deg, #0288d1, #01579b); }
         .btn-area { background: linear-gradient(135deg, #f57c00, #e65100); }
@@ -246,6 +244,9 @@
                 <button class="btn btn-mitrphol" onclick="switchScreen('mitrphol-screen')">
                     <i class="fa-solid fa-flask-vial"></i> คำนวณปุ๋ย N P K 
                 </button>
+                <button class="btn btn-custom-npk" onclick="switchScreen('npk-screen')">
+                    <i class="fa-solid fa-calculator"></i> คำนวณปริมาณแม่ปุ๋ย N P K
+                </button>
                 <button class="btn btn-fertilizer" onclick="switchScreen('fertilizer-screen')">
                     <i class="fa-solid fa-flask"></i> แนะนำการใช้ปุ๋ย
                 </button>
@@ -283,6 +284,43 @@
                 
                 <div id="mitr-result" class="result-text-block" style="background:#e0f2f1; border-color:#00a86b; color:#004d40;"></div>
                 <button class="btn btn-back" style="background:#004d40;" onclick="switchScreen('main-screen')">กลับหน้าหลัก</button>
+            </div>
+
+            <div id="npk-screen" class="screen">
+                <h3 style="text-align:center; color:#004d40; margin-bottom:15px;">🧪 คำนวณปริมาณแม่ปุ๋ย N P K</h3>
+                
+                <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; font-size: 13px; color: #2e7d32; margin-bottom: 15px; line-height: 1.4; text-align: left;">
+                    <i class="fa-solid fa-circle-info"></i> ระบุปริมาณธาตุอาหารบริสุทธิ์ที่ต้องการ (กิโลกรัมต่อไร่) และขนาดพื้นที่ ระบบจะคำนวณน้ำหนักแม่ปุ๋ยที่ต้องใช้ให้ทันทีครับ
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fa-solid fa-chart-area"></i> ขนาดพื้นที่ปลูก (ไร่)</label>
+                    <input type="number" id="npk-input-area" placeholder="ระบุจำนวนไร่ (เช่น 5.5)" step="any">
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="color: #d32f2f; text-align: center; display: block;">ต้องการ N</label>
+                        <input type="number" id="npk-input-n" placeholder="กก./ไร่" style="text-align: center;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="color: #388e3c; text-align: center; display: block;">ต้องการ P</label>
+                        <input type="number" id="npk-input-p" placeholder="กก./ไร่" style="text-align: center;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="color: #1976d2; text-align: center; display: block;">ต้องการ K</label>
+                        <input type="number" id="npk-input-k" placeholder="กก./ไร่" style="text-align: center;">
+                    </div>
+                </div>
+
+                <button type="button" class="btn" style="background: #00796b; color: white; justify-content: center; width: 100%; margin-bottom: 15px;" onclick="calculateCustomNPK()">
+                    <i class="fa-solid fa-calculator"></i> คำนวณสัดส่วนแม่ปุ๋ย
+                </button>
+
+                <div id="npk-custom-result" style="margin-top: 15px; padding: 15px; background-color: #e0f2f1; border-left: 5px solid #009688; border-radius: 8px; display: none; text-align: left;">
+                </div>
+
+                <button class="btn btn-back" style="background:#004d40; margin-top: 15px; width: 100%;" onclick="switchScreen('main-screen')">กลับหน้าหลัก</button>
             </div>
 
             <div id="sugarcane-screen" class="screen">
@@ -350,7 +388,7 @@
                 <h3 style="text-align:center; color:#e65100; margin-bottom:15px;">📐 คำนวณพื้นที่ดิน</h3>
                 
                 <div class="map-container" style="margin-top: 15px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #d35400;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #d35400; text-align: left;">
                         📍 จิ้มเลือกแปลงที่ดินบนแผนที่ดาวเทียมเพื่อคำนวณพื้นที่
                     </label>
         
@@ -365,7 +403,7 @@
                     <div id="map" style="width: 100%; height: 350px; border-radius: 15px; border: 2px solid #e0e0e0; box-shadow: inset 0 0 5px rgba(0,0,0,0.1);"></div>
                 </div>
 
-                <div id="area-result" style="margin-top: 15px; padding: 15px; background-color: #fff3e0; border-left: 5px solid #ff9800; border-radius: 8px; display: none;">
+                <div id="area-result" style="margin-top: 15px; padding: 15px; background-color: #fff3e0; border-left: 5px solid #ff9800; border-radius: 8px; display: none; text-align: left;">
                     <h4 style="margin: 0 0 8px 0; color: #e65100;">📐 ผลการคำนวณพื้นที่แปลงที่ดิน</h4>
                     <p style="margin: 5px 0; font-size: 16px;">คำนวณได้ทั้งหมด: <strong id="txt-total-rai" style="color: #d84315; font-size: 20px;">0</strong> ไร่</p>
                     <p style="margin: 5px 0; color: #555;" id="txt-detail-thai">0 ไร่ 0 งาน 0.0 ตารางวา</p>
@@ -421,8 +459,7 @@
 
         </div>
     </div> 
-</div> 
-
+</div>
 <script>
     // -------------------------------------------------------------
     // [เพิ่มใหม่] ระบบตัวแปรสำหรับควบคุมแผนที่ดาวเทียมและหมุด GPS
@@ -522,7 +559,7 @@
         document.getElementById("txt-detail-thai").innerText = `${rai} ไร่ ${ngan} งาน ${wah} ตารางวา`;
         document.getElementById("txt-detail-sqm").innerText = Math.round(squareMeters).toLocaleString();
 
-        // ✨ [ระบบเชื่อมโยงข้อมูลอัตโนมัติ] ส่งตัวเลขไร่ไปกรอกในฟอร์มคำนวณสูตรปุ๋ย
+        // ✨ [ระบบเชื่อมโยงข้อมูลอัตโนมัติ] ส่งตัวเลขไร่ไปกรอกในฟอร์มคำนวณสูตรปุ๋ยต่างๆ
         // 1. ช่องขนาดพื้นที่ในฟังก์ชัน "คำนวณปุ๋ยแอดวานซ์"
         const fertAreaInput = document.getElementById('fert-area');
         if (fertAreaInput) fertAreaInput.value = totalRaiDecimal;
@@ -530,6 +567,10 @@
         // 2. ช่องขนาดพื้นที่ในฟังก์ชัน "คำนวณปุ๋ยมิตรผล"
         const mitrAreaInput = document.getElementById('mitr-area');
         if (mitrAreaInput) mitrAreaInput.value = totalRaiDecimal;
+
+        // 3. ช่องขนาดพื้นที่ในฟังก์ชัน "คำนวณปุ๋ย N P K ชนิดกำหนดเอง"
+        const npkAreaInput = document.getElementById('npk-input-area');
+        if (npkAreaInput) npkAreaInput.value = totalRaiDecimal;
     }
 
     function getLocation() {
@@ -552,7 +593,7 @@
     }
 
     function clearMap() {
-        // ล้างหมุดทั้งหมดออกจาแผนที่
+        // ล้างหมุดทั้งหมดออกจากแผนที่
         mapMarkers.forEach(m => map.removeLayer(m));
         mapMarkers = [];
         
@@ -562,10 +603,88 @@
             polygonLayer = null;
         }
         
-        // ซ่อนกล่องผลลัพธ์และเคลียร์ค่าช่องปุ๋ยกลับเป็นศูนย์
+        // ซ่อนกล่องผลลัพธ์และเคลียร์ค่าช่องปุ๋ยกลับเป็นค่าว่าง
         document.getElementById("area-result").style.display = "none";
         if (document.getElementById('fert-area')) document.getElementById('fert-area').value = "";
         if (document.getElementById('mitr-area')) document.getElementById('mitr-area').value = "";
+        if (document.getElementById('npk-input-area')) document.getElementById('npk-input-area').value = "";
+    }
+
+    // -------------------------------------------------------------
+    // [เพิ่มใหม่] ฟังก์ชันคำนวณสัดส่วนแม่ปุ๋ย N P K จากความต้องการธาตุอาหาร
+    // -------------------------------------------------------------
+    function calculateCustomNPK() {
+        const area = parseFloat(document.getElementById('npk-input-area').value);
+        const reqN = parseFloat(document.getElementById('npk-input-n').value) || 0;
+        const reqP = parseFloat(document.getElementById('npk-input-p').value) || 0;
+        const reqK = parseFloat(document.getElementById('npk-input-k').value) || 0;
+
+        if (isNaN(area) || area <= 0) {
+            alert("กรุณากรอกขนาดพื้นที่ปลูก (ไร่) ให้ถูกต้องด้วยครับ");
+            return;
+        }
+        if (reqN <= 0 && reqP <= 0 && reqK <= 0) {
+            alert("กรุณาระบุปริมาณธาตุอาหาร N, P หรือ K อย่างน้อย 1 ตัวที่ต้องการคำนวณครับ");
+            return;
+        }
+
+        // 1. คำนวณหาความต้องการธาตุอาหารรวมทั้งหมดในแปลง (ปริมาณต่อไร่ x จำนวนไร่)
+        const totalNetN = reqN * area;
+        const totalNetP = reqP * area;
+        const totalNetK = reqK * area;
+
+        // 2. คำนวณหาปริมาณแม่ปุ๋ยฟอสฟอรัส DAP (18-46-0) จากธาตุ P ที่ต้องการก่อน
+        const dapKg = (totalNetP * 100) / 46;
+
+        // หักลบปริมาณไนโตรเจน (N) 18% ที่แถมมากับปุ๋ย DAP ออกจากสัดส่วนของยูเรีย เพื่อป้องกันปุ๋ยเกินเกณฑ์
+        const nFromDap = (dapKg * 18) / 100;
+
+        // 3. คำนวณหาปริมาณแม่ปุ๋ยยูเรีย Urea (46-0-0) จากธาตุ N ส่วนที่เหลือ
+        const remN = totalNetN - nFromDap;
+        const ureaKg = remN > 0 ? (remN * 100) / 46 : 0;
+
+        // 4. คำนวณหาปริมาณแม่ปุ๋ยโพแทสเซียม MOP (0-0-60) จากธาตุ K ที่ต้องการ
+        const mopKg = (totalNetK * 100) / 60;
+
+        // 5. สรุปแปลงค่าน้ำหนักกิโลกรัมให้กลายเป็นจำนวนกระสอบ (กระสอบละ 50 กก.)
+        const ureaBags = (ureaKg / 50).toFixed(1);
+        const dapBags = (dapKg / 50).toFixed(1);
+        const mopBags = (mopKg / 50).toFixed(1);
+        const totalBags = (parseFloat(ureaBags) + parseFloat(dapBags) + parseFloat(mopBags)).toFixed(1);
+
+        // 6. แสดงผลลัพธ์ลงบนหน้าจอการ์ด
+        const resultBox = document.getElementById('npk-custom-result');
+        resultBox.innerHTML = `
+            <div style="font-weight:700; font-size:15px; margin-bottom:8px; color:#004d40;">
+                <i class="fa-solid fa-square-poll-vertical"></i> ผลการคำนวณสัดส่วนปุ๋ยที่ต้องใช้
+            </div>
+            <div style="font-size:12px; color:#555; margin-bottom:10px; border-bottom: 1px dashed #bbb; padding-bottom:5px;">
+                คำนวณสำหรับพื้นที่แปลงดินขนาด <strong>${area} ไร่</strong>
+            </div>
+            
+            <div style="font-size:13px; line-height: 1.6; color:#333;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>1. ยูเรีย (46-0-0):</span> 
+                    <strong>${ureaKg.toFixed(1)} กก. <span style="color:#00796b;">(${ureaBags} กระสอบ)</span></strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>2. แดป (18-46-0):</span> 
+                    <strong>${dapKg.toFixed(1)} กก. <span style="color:#00796b;">(${dapBags} กระสอบ)</span></strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>3. ม็อบ (0-0-60):</span> 
+                    <strong>${mopKg.toFixed(1)} กก. <span style="color:#00796b;">(${mopBags} กระสอบ)</span></strong>
+                </div>
+            </div>
+
+            <div style="margin-top:12px; text-align:center; font-size:16px; font-weight:700; color:#d32f2f; border-top: 1px solid #ccc; padding-top: 10px;">
+                🔥 น้ำหนักรวมแม่ปุ๋ยทั้งสิ้น: ${totalBags} กระสอบ
+            </div>
+            <div style="margin-top: 5px; text-align: center; font-size: 11px; color: #777;">
+                (คิดเป็นน้ำหนักรวม ${(ureaKg + dapKg + mopKg).toFixed(1)} กิโลกรัม)
+            </div>
+        `;
+        resultBox.style.display = "block";
     }
 
     // -------------------------------------------------------------
@@ -774,9 +893,9 @@
         switchScreen('main-screen');
     }
 
-    // เอาโค้ดดึงค่ากว้างยาวเดิมในฟังก์ชันคำนวณพื้นที่เก่าออกแล้ว เปลี่ยนไปใช้การคำนวณจากแผนที่ดาวเทียมด้านบนแทน
+    // ฟังก์ชันคำนวณแบบกรอกความกว้างยาวเดิม ถูกปิดระบบสมบูรณ์และนำเข้าค่าผ่านแผนที่ดาวเทียมอิสระแทนเรียบร้อยครับ
     function calcArea() {
-        // เปลี่ยนเป็นฟังก์ชันว่าง เพื่อป้องกันเออร์เรอร์จากการเรียกหาไอดีเก่าที่ถูกลบไป
+        // ทำหน้าที่ดักจับกรณีโครงสร้างเก่าเรียกหาฟังก์ชันนี้เพื่อไม่ให้ระบบเออร์เรอร์
     }
     
     function calcFertilizerAdvanced() {

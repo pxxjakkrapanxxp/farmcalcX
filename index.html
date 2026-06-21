@@ -1622,67 +1622,21 @@ function sendOrderToKitchen() {
         };
 
 // ==========================================
-// 🛠️ ประกาศตัวแปรหลักของระบบไว้ Global Scope
+// 🚀 เริ่มต้นตั้งค่าระบบหน้าเว็บ (Optimized for Mobile)
 // ==========================================
- finalQty = 0;
- finalCost = 0;
- currentActivePage = 1;
- currentModalQty = 0;
- chosenSpicy = "";
-
-// ป้องกันกรณีตัวแปรตะกร้าสินค้าข้ามสคริปต์หลุดหาย
-if (typeof orderCart === 'undefined') { window.orderCart = {}; }
-if (typeof customMenuCart === 'undefined') { window.customMenuCart = []; }
-
-// ==========================================
-// 🚀 เริ่มต้นระบบงานเมื่อหน้าเว็บโหลดเสร็จสมบูรณ์ 100% (กันค้าง)
-// ==========================================
-window.addEventListener("DOMContentLoaded", function() {
-    
-    // 1. ตั้งค่าระบบสไลด์หน้าเมนูอาหาร (Swiper) ด้วยความปลอดภัย
-    try {
-        if (typeof Swiper !== 'undefined' && document.querySelector('.swiper')) {
-            window.swiper = new Swiper('.swiper', {
-                effect: 'slide', 
-                speed: 300,      
-                preloadImages: false, 
-                lazy: { loadPrevNext: true },
-                loop: false,
-                pagination: { el: '.swiper-pagination', clickable: true },
-                watchSlidesProgress: true
-            });
-            console.log("🎉 Swiper ถูกเปิดใช้งานสำเร็จ");
-        } else {
-            console.warn("⚠️ ไม่พบไลบรารี Swiper หรือคลาส .swiper บน HTML");
-        }
-    } catch (swiperError) {
-        console.error("❌ บล็อกการค้างจาก Swiper เรียบร้อย:", swiperError);
-    }
-
-    // 2. ผูก Event Listener เช็คพฤติกรรมการเปลี่ยนประเภทออเดอร์
-    const tableNumSelect = document.getElementById("tableNumber");
-    if (tableNumSelect) {
-        tableNumSelect.addEventListener("change", handleOrderTypeChange);
-    }
-
-    // 3. ผูก Event Listener เช็คข้อมูลอินพุตชื่อลูกค้าและเบอร์โทรแบบเรียลไทม์
-    const custNameInput = document.getElementById('custName') || document.getElementById('customerName');
-    if (custNameInput) {
-        custNameInput.addEventListener("input", validateOrderStatus);
-    }
-    
-    const actualTableInput = document.getElementById("actualTableNum");
-    if (actualTableInput) {
-        actualTableInput.addEventListener("input", validateOrderStatus);
-    }
-
-    // 4. สั่งอัปเดตยอดเงินเปิดหน้าเว็บครั้งแรก
-    refreshAllTotals();
+const swiper = new Swiper('.swiper', {
+    effect: 'slide', 
+    speed: 250, // ปรับให้ไวขึ้นเล็กน้อยเพื่อลดอาการหน่วงทางสายตา      
+    preloadImages: false, 
+    lazy: { loadPrevNext: true },
+    loop: false,
+    pagination: { el: '.swiper-pagination', clickable: true },
+    // 🔥 เพิ่มพารามิเตอร์เพื่อช่วยรีด Performance บนมือถือรุ่นเก่า
+    watchSlidesProgress: true,
+    touchStartPreventDefault: false, // ป้องกันการติดขัดขณะเริ่มใช้นิ้วปัดจอ
 });
 
-// ==========================================
-// 🔄 ระบบแสดง/ซ่อน เมนูตามประเภทการสั่งซื้อ
-// ==========================================
+// ฟังก์ชันควบคุมการ ซ่อน/แสดง ช่องเลือกเลขโต๊ะ และช่องที่อยู่เดลิเวอรี่
 function handleOrderTypeChange() {
     const orderStyle = document.getElementById("tableNumber")?.value || "";
     const tableInput = document.getElementById("actualTableNum");
@@ -1699,29 +1653,22 @@ function handleOrderTypeChange() {
             if (deliveryBox) deliveryBox.style.display = "block"; 
         }
     }
-    validateOrderStatus();
 }
 
 // ==========================================
-// 🛒 ระบบการจัดการตะกร้าสินค้าและ Modal เลือกเมนู
+// 🛒 ระบบการจัดการตะกร้าสินค้าและ Modal
 // ==========================================
 function openMenuModal(pageNumber) {
     currentActivePage = pageNumber;
-    
-    // ป้องกันกรณีตัวแปรเมนูยังไม่พร้อมใช้งาน
-    if (typeof menuDatabase === 'undefined' || !menuDatabase[pageNumber]) return;
     const config = menuDatabase[pageNumber];
+    if (!config) return;
     
-    const headerTitle = document.getElementById('modalHeaderTitle');
-    if (headerTitle) {
-        headerTitle.innerHTML = `<i class="fa-solid fa-list"></i> ${config.title}`;
-    }
+    document.getElementById('modalHeaderTitle').innerHTML = `<i class="fa-solid fa-list"></i> ${config.title}`;
     
     const menuSelect = document.getElementById('menuSelector');
-    if (!menuSelect) return;
-    
     menuSelect.innerHTML = '<option value="">-- เลือกเมนู --</option>';
     
+    // 🔥 เปลี่ยนมาใช้ documentFragment เพื่อประสิทธิภาพที่ดียิ่งขึ้น (ไม่กระตุก)
     const fragment = document.createDocumentFragment();
     config.options.forEach(item => {
         let opt = document.createElement('option');
@@ -1732,21 +1679,15 @@ function openMenuModal(pageNumber) {
     });
     menuSelect.appendChild(fragment);
 
-    const priceSelect = document.getElementById('priceSelector');
-    if (priceSelect) priceSelect.innerHTML = '<option value="">-- โปรดเลือกเมนูก่อน --</option>';
+    document.getElementById('priceSelector').innerHTML = '<option value="">-- โปรดเลือกเมนูก่อน --</option>';
     
     chosenSpicy = ""; 
     const modalNoteInput = document.getElementById('customSpicyInput') || document.getElementById('modalSpicyNote');
-    if (modalNoteInput) {
-        modalNoteInput.value = "";
-    }
+    if (modalNoteInput) modalNoteInput.value = "";
 
     currentModalQty = 1;
-    const qtyContainer = document.getElementById('modalQtyContainer');
-    if (qtyContainer) qtyContainer.innerText = currentModalQty;
-    
-    const menuModalEl = document.getElementById('menuModal');
-    if (menuModalEl) menuModalEl.style.display = 'flex';
+    document.getElementById('modalQtyContainer').innerText = currentModalQty;
+    document.getElementById('menuModal').style.display = 'flex';
 }
 
 function openMenuModalWithSelection(pageNumber, selectedMenuName) {
@@ -1759,8 +1700,7 @@ function openMenuModalWithSelection(pageNumber, selectedMenuName) {
 }
 
 function closeMenuModal() {
-    const menuModalEl = document.getElementById('menuModal');
-    if (menuModalEl) menuModalEl.style.display = 'none';
+    document.getElementById('menuModal').style.display = 'none';
 }
 
 function onMenuChange() {
@@ -1797,8 +1737,7 @@ function setSpicyFromInput(textValue) {
 function changeModalQty(amount) {
     currentModalQty += amount;
     if(currentModalQty < 1) currentModalQty = 1;
-    const qtyContainer = document.getElementById('modalQtyContainer');
-    if (qtyContainer) qtyContainer.innerText = currentModalQty;
+    document.getElementById('modalQtyContainer').innerText = currentModalQty;
 }
 
 function addItemToCart() {
@@ -1819,8 +1758,6 @@ function addItemToCart() {
 
     let displayName = menuName;
     const menuSelect = document.getElementById('menuSelector');
-    if (!menuSelect) return;
-    
     const selectedOption = menuSelect.options[menuSelect.selectedIndex];
     const allPrices = selectedOption.getAttribute('data-prices').split(',');
     if (allPrices.length === 3) {
@@ -1873,21 +1810,15 @@ function updateSummaryItemQty(type, key, amount) {
     } else if (type === 'custom') {
         if (customMenuCart[key]) {
             customMenuCart[key].qty += amount;
-            if (customMenuCart[key].qty <= 0) {
-                customMenuCart.splice(key, 1);
-            }
+            if (customMenuCart[key].qty <= 0) customMenuCart[key].qty = 1;
         }
     }
     
     refreshAllTotals();
+    validateOrderStatus(); 
 
-    if (finalQty <= 0) {
-        closeSummaryPopup();
-    } else {
-        setTimeout(function() {
-            triggerSummaryPopup();
-        }, 30);
-    }
+    if (finalQty === 0) closeSummaryPopup();
+    else triggerSummaryPopup();
 }
 
 function removeNormalItemFromSummary(id) {
@@ -1916,7 +1847,8 @@ function removeNormalItemFromSummary(id) {
             }
 
             refreshAllTotals();
-            if (finalQty <= 0) closeSummaryPopup();
+            validateOrderStatus();
+            if (finalQty === 0) closeSummaryPopup();
             else triggerSummaryPopup(); 
         }
     });
@@ -1936,7 +1868,8 @@ function removeCustomItemFromSummary(index) {
         if (result.isConfirmed) {
             customMenuCart.splice(index, 1);
             refreshAllTotals();
-            if (finalQty <= 0) closeSummaryPopup();
+            validateOrderStatus();
+            if (finalQty === 0) closeSummaryPopup();
             else triggerSummaryPopup();
         }
     });
@@ -2017,27 +1950,20 @@ function refreshAllTotals() {
         }
     }
 
-    if (Array.isArray(customMenuCart)) {
-        customMenuCart.forEach(item => {
-            finalQty += item.qty;
-            finalCost += (item.price * item.qty);
-        });
+    // แนะนำเปลี่ยนเป็นธรรมดาเพื่อถนอมหน่วยความจำในกรณีข้อมูลจำนวนเยอะ
+    for (let i = 0; i < customMenuCart.length; i++) {
+        finalQty += customMenuCart[i].qty;
+        finalCost += (customMenuCart[i].price * customMenuCart[i].qty);
     }
 
-    const totalItemsEl = document.getElementById('total-items');
-    const totalCostEl = document.getElementById('total-cost');
-    
-    if (totalItemsEl) totalItemsEl.innerText = finalQty;
-    if (totalCostEl) totalCostEl.innerText = finalCost;
-    
-    // ประมวลผลแบบกระจายคิวลดภาระของ CPU มือถือ
-    requestAnimationFrame(validateOrderStatus);
+    document.getElementById('total-items').innerText = finalQty;
+    document.getElementById('total-cost').innerText = finalCost;
+    validateOrderStatus();
 }
 
-// 🛠️ ระบบตรวจสอบความถูกต้องฟอร์ม (Form Validation) แบบอุดรอยรั่ว Null Object
 function validateOrderStatus() {
     try {
-        const nameEl = document.getElementById('custName') || document.getElementById('customerName');
+        const nameEl = document.getElementById('custName');
         const currentName = nameEl ? nameEl.value.trim() : "";
         
         const submitBtn = document.getElementById('submitOrderBtn') || 
@@ -2066,8 +1992,10 @@ function validateOrderStatus() {
             }
         }
 
+        let totalItems = finalQty;
+
         if (submitBtn) {
-            if (isFormValid && finalQty > 0) {
+            if (isFormValid && totalItems > 0) {
                 submitBtn.disabled = false;
                 submitBtn.style.opacity = "1"; 
                 submitBtn.style.cursor = "pointer";
@@ -2082,29 +2010,25 @@ function validateOrderStatus() {
     }
 }
 
+// 🔥 จุดแก้ไขสำคัญเพื่อลดอาการค้าง: ทำ String Concatenation รวดเดียวก่อนอัปเดต DOM
 function triggerSummaryPopup() {
-    const custNameEl = document.getElementById('custName') || document.getElementById('customerName');
-    const summaryCustomerEl = document.getElementById('summaryCustomer');
-    if (custNameEl && summaryCustomerEl) summaryCustomerEl.innerText = custNameEl.value;
+    const custNameEl = document.getElementById('custName');
+    document.getElementById('summaryCustomer').innerText = custNameEl ? custNameEl.value : "";
     
     const orderStyle = document.getElementById('tableNumber')?.value || "";
-    const summaryTableEl = document.getElementById('summaryTable');
-    
-    if (summaryTableEl) {
-        if (orderStyle === "ทานที่ร้าน") {
-            const tableNum = document.getElementById("actualTableNum")?.value || "";
-            summaryTableEl.innerText = tableNum ? "🍽️ โต๊ะ: " + tableNum : "🍽️ ไม่ได้ระบุโต๊ะ";
-        } else if (orderStyle === "ห่อกลับบ้าน") {
-            summaryTableEl.innerText = "🛍️ ห่อกลับบ้าน";
-        } else if (orderStyle === "จัดส่งถึงบ้าน" || orderStyle === "จัดส่ง") {
-            summaryTableEl.innerText = "🚚 จัดส่งถึงบ้าน (เดลิเวอรี่)";
-        }
+    if (orderStyle === "ทานที่ร้าน") {
+        const tableNum = document.getElementById("actualTableNum")?.value || "";
+        document.getElementById('summaryTable').innerText = tableNum ? "🍽️ โต๊ะ: " + tableNum : "🍽️ ไม่ได้ระบุโต๊ะ";
+    } else if (orderStyle === "ห่อกลับบ้าน") {
+        document.getElementById('summaryTable').innerText = "🛍️ ห่อกลับบ้าน";
+    } else if (orderStyle === "จัดส่งถึงบ้าน" || orderStyle.includes("จัดส่ง")) {
+        document.getElementById('summaryTable').innerText = "🚚 จัดส่งถึงบ้าน (เดลิเวอรี่)";
     }
     
     const listContainer = document.getElementById('summaryListItems');
     if (!listContainer) return;
-    
-    let htmlBuffer = "";
+
+    let htmlBuffer = ""; // เก็บค่า HTML ทั้งหมดไว้ที่นี่แทนการสั่ง render ทีละรอบ
     
     for (let id in orderCart) {
         if (orderCart.hasOwnProperty(id) && orderCart[id].qty > 0) {
@@ -2131,47 +2055,41 @@ function triggerSummaryPopup() {
         }
     }
 
-    if (Array.isArray(customMenuCart)) {
-        customMenuCart.forEach((item, index) => {
-            const noteContent = item.spicy ? `<div style="color: #ffc107; font-size: 13px; margin-left: 28px; margin-top: 2px;"><i class="fa-solid fa-pen-to-square"></i> หมายเหตุ: ${item.spicy}</div>` : '';
-            
-            htmlBuffer += `
-                <div class="modal-item" style="display: flex; flex-direction: column; margin-bottom: 12px; border-bottom: 1px dashed #444; padding-bottom: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-                            <button onclick="removeCustomItemFromSummary(${index})" style="background: none; border: none; color: #ff4747; cursor: pointer; font-size: 16px; padding: 0 4px;">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                            <span style="color: #fff; font-size: 15px;">🌶️ <strong>${item.name}</strong></span>
-                        </div>
-                        <div style="display: flex; align-items: center; background: #222; border-radius: 20px; padding: 2px 6px; margin: 0 15px;">
-                            <button onclick="updateSummaryItemQty('custom', ${index}, -1)" style="background: #333; border: none; color: white; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px;">-</button>
-                            <span style="color: #fff; margin: 0 10px; font-weight: bold; font-size: 14px; min-width: 15px; text-align: center;">${item.qty}</span>
-                            <button onclick="updateSummaryItemQty('custom', ${index}, 1)" style="background: #ff4747; border: none; color: white; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px;">+</button>
-                        </div>
-                        <strong style="color: #fff; min-width: 60px; text-align: right;">฿${item.price * item.qty}</strong>
+    for (let index = 0; index < customMenuCart.length; index++) {
+        const item = customMenuCart[index];
+        const noteContent = item.spicy ? `<div style="color: #ffc107; font-size: 13px; margin-left: 28px; margin-top: 2px;"><i class="fa-solid fa-pen-to-square"></i> หมายเหตุ: ${item.spicy}</div>` : '';
+        
+        htmlBuffer += `
+            <div class="modal-item" style="display: flex; flex-direction: column; margin-bottom: 12px; border-bottom: 1px dashed #444; padding-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                        <button onclick="removeCustomItemFromSummary(${index})" style="background: none; border: none; color: #ff4747; cursor: pointer; font-size: 16px; padding: 0 4px;">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                        <span style="color: #fff; font-size: 15px;">🌶️ <strong>${item.name}</strong></span>
                     </div>
-                    ${noteContent}
-                </div>`;
-        });
+                    <div style="display: flex; align-items: center; background: #222; border-radius: 20px; padding: 2px 6px; margin: 0 15px;">
+                        <button onclick="updateSummaryItemQty('custom', ${index}, -1)" style="background: #333; border: none; color: white; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px;">-</button>
+                        <span style="color: #fff; margin: 0 10px; font-weight: bold; font-size: 14px; min-width: 15px; text-align: center;">${item.qty}</span>
+                        <button onclick="updateSummaryItemQty('custom', ${index}, 1)" style="background: #ff4747; border: none; color: white; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px;">+</button>
+                    </div>
+                    <strong style="color: #fff; min-width: 60px; text-align: right;">฿${item.price * item.qty}</strong>
+                </div>
+                ${noteContent}
+            </div>`;
     }
     
-    listContainer.innerHTML = htmlBuffer;
-    
-    const summaryTotalCostEl = document.getElementById('summaryTotalCost');
-    if (summaryTotalCostEl) summaryTotalCostEl.innerText = finalCost;
-    
-    const summaryModalEl = document.getElementById('summaryModal');
-    if (summaryModalEl) summaryModalEl.style.display = 'flex';
+    listContainer.innerHTML = htmlBuffer; // บังคับเขียน DOM แค่ครั้งเดียว ตัวเครื่องจะไม่กระตุกเลย
+    document.getElementById('summaryTotalCost').innerText = finalCost;
+    document.getElementById('summaryModal').style.display = 'flex';
 }
 
 function closeSummaryPopup() {
-    const summaryModalEl = document.getElementById('summaryModal');
-    if (summaryModalEl) summaryModalEl.style.display = 'none';
+    document.getElementById('summaryModal').style.display = 'none';
 }
 
 // ==========================================
-// 🍳 ฟังก์ชันส่งออเดอร์ไปเซิร์ฟเวอร์ (Back-end)
+// 🍳 ฟังก์ชันส่งออเดอร์ไปฐานข้อมูล (Back-end)
 // ==========================================
 function sendOrderToKitchen() {
     const nameInput = document.getElementById('custName') || document.getElementById('customerName');
